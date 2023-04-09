@@ -2,14 +2,14 @@ version: '3.9'
 
 services:
 
-  zero2prod:
-    image: zero2prod:latest
-    container_name: zero2prod
-    restart: on-failure
-    depends_on:
-      - postgres
-    ports:
-      - 8000:8000
+  #  zero2prod:
+  #    image: zero2prod:latest
+  #    container_name: zero2prod
+  #    restart: on-failure
+  #    depends_on:
+  #      - postgres
+  #    ports:
+  #      - 8000:8000
 
 
   postgres:

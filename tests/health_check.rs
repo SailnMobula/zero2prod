@@ -1,9 +1,10 @@
 use std::net::TcpListener;
 
 use once_cell::sync::Lazy;
-use sqlx::{query, PgPool};
+use sqlx::{query, Connection, Executor, PgConnection, PgPool};
+use uuid::Uuid;
 
-use zero2prod::configuration::get_configuration;
+use zero2prod::configuration::{get_configuration, DatabaseSettings};
 use zero2prod::startup::run;
 use zero2prod::telemetry::{get_subscriber, init_subscriber};
 
@@ -88,16 +89,44 @@ async fn bad_subscriber_returns_400() {
     }
 }
 
+#[tokio::test]
+async fn subscribe_returns_a_400_when_fields_are_present_but_empty() {
+    // Arrange
+    let test_app = spawn_app().await;
+    let client = reqwest::Client::new();
+    let test_cases = vec![
+        ("name=&email=ursula_le_guin%40gmail.com", "empty name"),
+        // ("name=Ursula&email=", "empty email"),
+        // ("name=Ursula&email=definitely-not-an-email", "invalid email"),
+    ];
+    for (body, description) in test_cases {
+        // Act
+        let response = client
+            .post(&format!("http://{}/subscriptions", &test_app.address))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await
+            .expect("Failed to execute request.");
+        // Assert
+        assert_eq!(
+            400,
+            response.status().as_u16(),
+            "The API did not return a 200 OK when the payload was {}.",
+            description
+        );
+    }
+}
+
 async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind address");
     let address = listener.local_addr().expect("No address");
-    let config = get_configuration().expect("Could not read configuration");
-    let connection_string = config.database.get_connection_string();
-    let db_pool = PgPool::connect(&connection_string)
-        .await
-        .expect("Could not connect to Database");
+    let mut config = get_configuration().expect("Could not read configuration");
+    config.database.database_name = Uuid::new_v4().to_string();
+    let db_pool = configure_database(&config.database).await;
+
     let server = run(listener, db_pool.clone()).expect("Failed");
 
     let _ = tokio::spawn(server);
@@ -105,6 +134,27 @@ async fn spawn_app() -> TestApp {
     let address = format!("{}", address);
 
     TestApp { address, db_pool }
+}
+
+async fn configure_database(settings: &DatabaseSettings) -> PgPool {
+    let mut connection = PgConnection::connect(settings.get_connection_without_db().as_str())
+        .await
+        .expect("Failed to connect to database");
+    connection
+        .execute(format!(r#"CREATE DATABASE "{}";"#, settings.database_name).as_str())
+        .await
+        .expect("Failed to create database");
+
+    let connection_string = settings.get_connection_string();
+    let db_pool = PgPool::connect(&connection_string)
+        .await
+        .expect("Failed not connect to database");
+    sqlx::migrate!("./migrations")
+        .run(&db_pool)
+        .await
+        .expect("Failed to migrate");
+
+    db_pool
 }
 
 pub struct TestApp {

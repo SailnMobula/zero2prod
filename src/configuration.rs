@@ -17,7 +17,7 @@ pub struct DatabaseSettings {
     name: String,
     password: String,
     host: String,
-    database_name: String,
+    pub database_name: String,
     port: u16,
 }
 
@@ -73,6 +73,13 @@ impl DatabaseSettings {
         format!(
             "postgres://{}:{}@{}:{}/{}",
             self.name, self.password, self.host, self.port, self.database_name
+        )
+    }
+
+    pub fn get_connection_without_db(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}",
+            self.name, self.password, self.host, self.port
         )
     }
 }
