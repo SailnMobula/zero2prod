@@ -5,3 +5,6 @@ database:
   password: password
   database_name: newsletter
   port: 5432
+email_client:
+  base_url: http://localhost
+  sender_email: test@gmail.com
