@@ -1,6 +1,8 @@
 use std::net::TcpListener;
 
+use fake::{Fake, Faker};
 use once_cell::sync::Lazy;
+use secrecy::Secret;
 use sqlx::{query, Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 
@@ -121,7 +123,6 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_empty() {
 
 async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
-
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind address");
     let address = listener.local_addr().expect("No address");
     let mut config = get_configuration().expect("Could not read configuration");
@@ -132,7 +133,11 @@ async fn spawn_app() -> TestApp {
         .email_client
         .sender()
         .expect("Not a valid email address");
-    let email_client = EmailClient::new(config.email_client.base_url, email);
+    let email_client = EmailClient::new(
+        config.email_client.base_url,
+        email,
+        Secret::new(Faker.fake()),
+    );
     let server = run(listener, db_pool.clone(), email_client).expect("Failed");
 
     let _ = tokio::spawn(server);

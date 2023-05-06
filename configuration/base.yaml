@@ -8,3 +8,4 @@ database:
 email_client:
   base_url: http://localhost
   sender_email: test@gmail.com
+  auth_token: MySecretDeez

@@ -1,3 +1,4 @@
+use secrecy::Secret;
 use serde::Deserialize;
 
 use crate::domain::SubscriberEmail;
@@ -13,6 +14,7 @@ pub struct Settings {
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
+    pub auth_token: Secret<String>,
 }
 
 impl EmailClientSettings {
@@ -47,7 +49,7 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let settings = config::Config::builder()
         .add_source(config::File::from(configuration_path.join("base.yaml")))
         .add_source(config::File::from(
-            configuration_path.join(&environment_filename),
+            configuration_path.join(environment_filename),
         ))
         .build()?;
 

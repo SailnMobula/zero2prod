@@ -11,7 +11,7 @@ impl SubscriberName {
         let has_forbidden_chars = name.chars().any(|s| forbidden_chars.contains(&s));
 
         if is_empty || is_too_long || has_forbidden_chars {
-            return Err(format!("Name is not valid"));
+            return Err("Name is not valid".to_string());
         }
 
         Ok(SubscriberName(name))

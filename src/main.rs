@@ -25,7 +25,11 @@ async fn main() -> std::io::Result<()> {
         .email_client
         .sender()
         .expect("Not a valid email address");
-    let email_client = EmailClient::new(config.email_client.base_url, email);
+    let email_client = EmailClient::new(
+        config.email_client.base_url,
+        email,
+        config.email_client.auth_token,
+    );
     let listener = TcpListener::bind(address).expect("Failed to bind port");
     logs::info!("Starting app");
     run(listener, db_pool, email_client)?.await
