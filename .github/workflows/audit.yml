@@ -1,5 +1,5 @@
 name: Security audit
-jobs:on:
+on:
   push:
     paths:
       - '**/Cargo.toml'
