@@ -28,12 +28,25 @@ jobs:
           - 5432:5432
     steps:
       - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Migrate database
+        run: |
+          sudo apt-get install libpq-dev -y
+          cargo install --version=0.6 sqlx-cli --no-default-features --features postgres
+          sqlx create database
+          sqlx migrate
       - name: Setup Database
         run: sh ./init_db.sh
       - name: Build
         run: cargo build --verbose
       - name: Run tests
         run: cargo test --verbose
+    env:
+      DATABASE_URL: postgres://postgres:password@localhost:5432/newsletter
 
   clippy_check:
     runs-on: ubuntu-latest
