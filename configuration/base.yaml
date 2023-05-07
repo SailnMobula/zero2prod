@@ -9,3 +9,4 @@ email_client:
   base_url: http://localhost
   sender_email: test@gmail.com
   auth_token: MySecretDeez
+  timeout_millis: 10000
