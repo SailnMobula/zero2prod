@@ -39,8 +39,6 @@ jobs:
           cargo install --version=^0.6 sqlx-cli --no-default-features --features postgres
           sqlx create database
           sqlx migrate
-      - name: Setup Database
-        run: sh ./init_db.sh
       - name: Build
         run: cargo build --verbose
       - name: Run tests
