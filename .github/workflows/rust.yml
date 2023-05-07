@@ -36,7 +36,7 @@ jobs:
       - name: Migrate database
         run: |
           sudo apt-get install libpq-dev -y
-          cargo install --version=^0.6 sqlx-cli --no-default-features --features postgres
+          cargo install --version=^0.6 sqlx-cli --no-default-features --features rustls,postgres
           sqlx create database
           sqlx migrate
       - name: Build
