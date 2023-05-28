@@ -6,6 +6,7 @@ use sqlx::types::Uuid;
 use sqlx::PgPool;
 
 use crate::domain::Subscriber;
+use crate::email_client::EmailClient;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SubscriberCreateRequest {
@@ -23,6 +24,7 @@ subscriber_name = % subscriber_request.name
 pub async fn subscriptions(
     subscriber_request: Form<SubscriberCreateRequest>,
     db_pool: Data<PgPool>,
+    email_client: Data<EmailClient>,
 ) -> impl Responder {
     tracing::info!(
         "Adding new subscriber with email: [{}]",
@@ -34,13 +36,30 @@ pub async fn subscriptions(
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
 
-    match create_new_subscriber(&subscriber_to_create, db_pool.get_ref()).await {
-        Ok(_) => {
-            tracing::info!("Successfully added new subscriber");
-            HttpResponse::Ok().finish()
-        }
-        Err(_) => HttpResponse::InternalServerError().finish(),
+    if create_new_subscriber(&subscriber_to_create, db_pool.get_ref())
+        .await
+        .is_err()
+    {
+        return HttpResponse::InternalServerError().finish();
     }
+
+    tracing::info!("Sending confirmation mail to new subscriber");
+
+    if email_client
+        .send(
+            subscriber_to_create.email,
+            "Welcome",
+            "Welcome to our newsletter",
+            "Welcome to our newsletter",
+        )
+        .await
+        .is_err()
+    {
+        return HttpResponse::InternalServerError().finish();
+    }
+
+    tracing::info!("Successfully added new subscriber");
+    HttpResponse::Ok().finish()
 }
 
 #[tracing::instrument(
@@ -53,8 +72,8 @@ async fn create_new_subscriber(
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
-        INSERT INTO subscriptions (id, email, name, subscribed_at)
-        VALUES($1, $2, $3, $4)
+        INSERT INTO subscriptions (id, email, name, subscribed_at, status)
+        VALUES($1, $2, $3, $4, 'confirmed') 
         "#,
         Uuid::new_v4(),
         subscriber.email.as_ref(),
