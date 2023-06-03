@@ -32,7 +32,7 @@ impl EmailClient {
             auth_token,
         }
     }
-    pub async fn send(
+    pub async fn send_mail(
         &self,
         recipient: SubscriberEmail,
         subject: &str,
@@ -141,7 +141,7 @@ mod tests {
             .await;
 
         let result = email_client(mock_server.uri())
-            .send(email(), &subject(), &content(), &content())
+            .send_mail(email(), &subject(), &content(), &content())
             .await;
 
         assert_ok!(result);
@@ -159,7 +159,7 @@ mod tests {
             .await;
 
         let result = email_client(mock_server.uri())
-            .send(email(), &subject(), &content(), &content())
+            .send_mail(email(), &subject(), &content(), &content())
             .await;
 
         assert_err!(result);
@@ -176,7 +176,7 @@ mod tests {
             .await;
 
         let result = email_client(mock_server.uri())
-            .send(email(), &subject(), &content(), &content())
+            .send_mail(email(), &subject(), &content(), &content())
             .await;
 
         assert_err!(result);

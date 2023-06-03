@@ -45,13 +45,7 @@ pub async fn subscriptions(
 
     tracing::info!("Sending confirmation mail to new subscriber");
 
-    if email_client
-        .send(
-            subscriber_to_create.email,
-            "Welcome",
-            "Welcome to our newsletter",
-            "Welcome to our newsletter",
-        )
+    if send_email_confirmation(&email_client, subscriber_to_create)
         .await
         .is_err()
     {
@@ -60,6 +54,35 @@ pub async fn subscriptions(
 
     tracing::info!("Successfully added new subscriber");
     HttpResponse::Ok().finish()
+}
+
+#[tracing::instrument(
+    name = "Send a confirmation email to new subscriber",
+    skip(email_client, subscriber_to_create)
+)]
+async fn send_email_confirmation(
+    email_client: &EmailClient,
+    subscriber_to_create: Subscriber,
+) -> Result<(), reqwest::Error> {
+    let confirmation_link = "https://my-api.com/subscriptions/confirm";
+    let html_body = format!(
+        "Welcome to our newsletter! <br /> \
+                Please click <a href=\"{}\">here</a> to confirm your registration",
+        confirmation_link
+    );
+    let plain_body = format!(
+        "Welcome to our newsletter!\n Visit {} to confirm your registration",
+        confirmation_link
+    );
+
+    email_client
+        .send_mail(
+            subscriber_to_create.email,
+            "Welcome",
+            &html_body,
+            &plain_body,
+        )
+        .await
 }
 
 #[tracing::instrument(
@@ -73,7 +96,7 @@ async fn create_new_subscriber(
     sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at, status)
-        VALUES($1, $2, $3, $4, 'confirmed') 
+        VALUES($1, $2, $3, $4, 'pending_confirmation') 
         "#,
         Uuid::new_v4(),
         subscriber.email.as_ref(),
