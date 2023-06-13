@@ -7,6 +7,7 @@ use sqlx::PgPool;
 
 use crate::domain::Subscriber;
 use crate::email_client::EmailClient;
+use crate::startup::ApplicationBaseUrl;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SubscriberCreateRequest {
@@ -15,7 +16,7 @@ pub struct SubscriberCreateRequest {
 }
 
 #[tracing::instrument(
-name = "Adding a new subscriber", skip(subscriber_request, db_pool),
+name = "Adding a new subscriber", skip(subscriber_request, db_pool, base_url ),
 fields(
 subscriber_email = % subscriber_request.email,
 subscriber_name = % subscriber_request.name
@@ -25,6 +26,7 @@ pub async fn subscriptions(
     subscriber_request: Form<SubscriberCreateRequest>,
     db_pool: Data<PgPool>,
     email_client: Data<EmailClient>,
+    base_url: Data<ApplicationBaseUrl>,
 ) -> impl Responder {
     tracing::info!(
         "Adding new subscriber with email: [{}]",
@@ -36,6 +38,7 @@ pub async fn subscriptions(
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
 
+    let token = "mytoken";
     if create_new_subscriber(&subscriber_to_create, db_pool.get_ref())
         .await
         .is_err()
@@ -45,7 +48,7 @@ pub async fn subscriptions(
 
     tracing::info!("Sending confirmation mail to new subscriber");
 
-    if send_email_confirmation(&email_client, subscriber_to_create)
+    if send_email_confirmation(&email_client, &base_url.0, subscriber_to_create, token)
         .await
         .is_err()
     {
@@ -58,13 +61,19 @@ pub async fn subscriptions(
 
 #[tracing::instrument(
     name = "Send a confirmation email to new subscriber",
-    skip(email_client, subscriber_to_create)
+    skip(email_client, subscriber_to_create, base_url)
 )]
 async fn send_email_confirmation(
     email_client: &EmailClient,
+    base_url: &str,
     subscriber_to_create: Subscriber,
+    subscription_token: &str,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = "https://my-api.com/subscriptions/confirm";
+    println!("base: {}", base_url);
+    let confirmation_link = format!(
+        "{}/subscriptions/confirm?subscription_token={}",
+        base_url, subscription_token
+    );
     let html_body = format!(
         "Welcome to our newsletter! <br /> \
                 Please click <a href=\"{}\">here</a> to confirm your registration",

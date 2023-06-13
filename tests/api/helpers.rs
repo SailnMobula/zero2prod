@@ -1,5 +1,6 @@
+use linkify::LinkKind;
 use once_cell::sync::Lazy;
-use reqwest::Response;
+use reqwest::{Response, Url};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 
@@ -35,12 +36,14 @@ pub async fn spawn_app() -> TestApp {
     let application = Application::build(config.clone())
         .await
         .expect("Failed to load application");
-    let address = format!("127.0.0.1:{}", application.port());
+    let application_port = application.port();
+    let address = format!("localhost:{}", application.port());
     let _ = tokio::spawn(application.run_until_stopped());
     TestApp {
         address,
         db_pool: get_connection_pool(&config.database),
-        email_server
+        email_server,
+        port: application_port,
     }
 }
 
@@ -68,6 +71,12 @@ pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
     pub email_server: MockServer,
+    pub port: u16,
+}
+
+pub struct ConfirmationLinks {
+    pub html: reqwest::Url,
+    pub plain: reqwest::Url,
 }
 
 impl TestApp {
@@ -80,5 +89,26 @@ impl TestApp {
             .send()
             .await
             .expect("Failed to send request")
+    }
+
+    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+        let get_link = |s: &str| {
+            let links: Vec<_> = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == LinkKind::Url)
+                .collect();
+            assert_eq!(links.len(), 1);
+            let raw_links = links[0].as_str().to_owned();
+            let mut confirmation_url = Url::parse(&raw_links).unwrap();
+            assert_eq!(confirmation_url.host_str().unwrap(), "127.0.0.1");
+            confirmation_url.set_port(Some(self.port)).unwrap();
+            confirmation_url
+        };
+
+        let html = get_link(&body["HtmlBody"].as_str().unwrap());
+        let plain = get_link(&body["TextBody"].as_str().unwrap());
+        ConfirmationLinks { html, plain }
     }
 }
