@@ -29,7 +29,7 @@ pub async fn subscriptions(
     db_pool: Data<PgPool>,
     email_client: Data<EmailClient>,
     base_url: Data<ApplicationBaseUrl>,
-) -> impl Responder{
+) -> impl Responder {
     tracing::info!(
         "Adding new subscriber with email: [{}]",
         subscriber_request.email
