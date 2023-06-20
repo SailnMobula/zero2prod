@@ -1,4 +1,3 @@
-use linkify::LinkKind;
 use sqlx::query;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
